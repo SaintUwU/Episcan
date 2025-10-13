@@ -1,0 +1,6 @@
+title,content,source,url,published_at,disease_type,outbreak_status,case_count,affected_counties
+"Malaria Outbreak - Kenya","WHO Africa reports confirmed malaria outbreak in western Kenya. Over 150 cases confirmed in Kisumu and surrounding areas. Response teams deployed.",WHO Africa,https://www.afro.who.int/news/malaria-kenya-12345,2024-01-15 00:00:00,malaria,confirmed,150,"[""kisumu"", ""siaya"", ""homabay""]"
+"Cholera Alert - Coastal Kenya","Ministry of Health confirms cholera cases in coastal region. Water sources being tested. Public advised to maintain hygiene.",MOH Kenya,https://www.health.go.ke/cholera-alert-67890,2024-01-16 00:00:00,cholera,confirmed,45,"[""mombasa"", ""kilifi"", ""kwale""]"
+"Influenza Monitoring - Nairobi","Suspected increase in influenza cases in Nairobi. Surveillance ongoing. Public urged to seek medical care for symptoms.",WHO Global,https://www.who.int/news/kenya-flu-11223,2024-01-17 00:00:00,influenza,suspected,200,"[""nairobi"", ""kiambu""]"
+
+

@@ -1,0 +1,6 @@
+tweet_id,text,username,created_at,location,county,sentiment_score,sentiment_label,retweet_count,favorite_count,keywords
+12345,"Many malaria cases reported in our area. Please seek medical attention if you have fever.",healthuser,2024-01-15 10:30:00,"Kisumu, Kenya",kisumu,-0.3,negative,5,10,"[""malaria"", ""fever""]"
+67890,"Flu outbreak in the city. Stay safe everyone!",concerned_citizen,2024-01-16 14:20:00,"Nairobi, Kenya",nairobi,-0.5,negative,15,25,"[""flu"", ""outbreak""]"
+11223,"Health alert: Cholera cases rising in coastal region",news_alert,2024-01-17 09:00:00,"Mombasa, Kenya",mombasa,-0.6,negative,50,80,"[""cholera"", ""alert""]"
+
+

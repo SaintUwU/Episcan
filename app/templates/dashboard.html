@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EpiScan - Disease Outbreak Prediction Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js@2.14.0/dist/plotly.min.js"></script>
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+        }
+        .alert-card {
+            border-left: 4px solid #dc3545;
+        }
+        .alert-card.warning {
+            border-left-color: #ffc107;
+        }
+        .alert-card.info {
+            border-left-color: #17a2b8;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .county-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            margin: 0.125rem;
+        }
+        .risk-high {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .risk-medium {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .risk-low {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-virus"></i> EpiScan</h1>
+                    <p class="lead mb-0">Disease Outbreak Prediction System for Kenya</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end align-items-center">
+                        <div class="me-3 text-end">
+                            <div class="fw-bold">{{ current_user.full_name }}</div>
+                            <small class="opacity-75">{{ current_user.role }}</small>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-light me-2" onclick="refreshData()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button class="btn btn-outline-light me-2" onclick="collectData()">
+                                <i class="fas fa-download"></i> Collect Data
+                            </button>
+                            <button class="btn btn-outline-light me-2" onclick="trainModels()">
+                                <i class="fas fa-brain"></i> Train Models
+                            </button>
+                            <button class="btn btn-outline-light me-2" onclick="evaluateModels()">
+                                <i class="fas fa-chart-line"></i> Evaluate Models
+                            </button>
+                            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-comments fa-2x text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0" id="tweet-count">-</h5>
+                            <small class="text-muted">Recent Tweets</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-newspaper fa-2x text-info"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0" id="news-count">-</h5>
+                            <small class="text-muted">News Articles</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-chart-line fa-2x text-success"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0" id="trends-count">-</h5>
+                            <small class="text-muted">Trend Data</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0" id="alerts-count">-</h5>
+                            <small class="text-muted">Active Alerts</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5><i class="fas fa-bell"></i> Active Alerts</h5>
+                    <div id="alerts-container">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin"></i> Loading alerts...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5><i class="fas fa-map-marker-alt"></i> County Activity</h5>
+                    <canvas id="countyChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-bar"></i> Disease Trends</h5>
+                    <canvas id="diseaseChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Predictions Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5><i class="fas fa-crystal-ball"></i> Recent Predictions</h5>
+                    <div id="predictions-container">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin"></i> Loading predictions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Evaluation Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-line"></i> Model Performance</h5>
+                    <div id="model-evaluation-container">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle"></i> Click "Evaluate Models" to see performance metrics
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let countyChart, diseaseChart;
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard-data');
+                const data = await response.json();
+                
+                updateSummaryCards(data.summary);
+                updateAlerts(data.alerts);
+                updatePredictions(data.predictions);
+                updateCharts(data.county_data, data.disease_trends);
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showError('Failed to load dashboard data');
+            }
+        }
+
+        // Update summary cards
+        function updateSummaryCards(summary) {
+            document.getElementById('tweet-count').textContent = summary.recent_tweets.toLocaleString();
+            document.getElementById('news-count').textContent = summary.recent_news.toLocaleString();
+            document.getElementById('trends-count').textContent = summary.recent_trends.toLocaleString();
+            document.getElementById('alerts-count').textContent = summary.active_alerts.toLocaleString();
+        }
+
+        // Update alerts
+        function updateAlerts(alerts) {
+            const container = document.getElementById('alerts-container');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted"><i class="fas fa-check-circle"></i> No active alerts</div>';
+                return;
+            }
+
+            let alertsHtml = '';
+            alerts.forEach(alert => {
+                const severityClass = alert.severity === 'critical' ? 'alert-danger' : 
+                                    alert.severity === 'high' ? 'alert-warning' : 'alert-info';
+                
+                alertsHtml += `
+                    <div class="alert ${severityClass} alert-dismissible fade show" role="alert">
+                        <strong>${alert.type.toUpperCase()}</strong> - ${alert.title}
+                        ${alert.county ? `<span class="badge bg-secondary ms-2">${alert.county}</span>` : ''}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = alertsHtml;
+        }
+
+        // Update predictions
+        function updatePredictions(predictions) {
+            const container = document.getElementById('predictions-container');
+            
+            if (predictions.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted"><i class="fas fa-info-circle"></i> No recent predictions</div>';
+                return;
+            }
+
+            let predictionsHtml = '<div class="row">';
+            predictions.forEach(pred => {
+                const riskClass = pred.risk_level === 'high' ? 'risk-high' : 
+                                pred.risk_level === 'medium' ? 'risk-medium' : 'risk-low';
+                
+                predictionsHtml += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">${pred.county} - ${pred.disease_type}</h6>
+                                <p class="card-text">
+                                    <span class="${riskClass}">${pred.risk_level.toUpperCase()}</span> 
+                                    (${(pred.probability * 100).toFixed(1)}%)
+                                </p>
+                                <small class="text-muted">${new Date(pred.date).toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            predictionsHtml += '</div>';
+
+            container.innerHTML = predictionsHtml;
+        }
+
+        // Update charts
+        function updateCharts(countyData, diseaseTrends) {
+            // County chart
+            const countyCtx = document.getElementById('countyChart').getContext('2d');
+            if (countyChart) countyChart.destroy();
+            
+            countyChart = new Chart(countyCtx, {
+                type: 'bar',
+                data: {
+                    labels: countyData.map(d => d.county),
+                    datasets: [{
+                        label: 'Tweet Count',
+                        data: countyData.map(d => d.tweet_count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Disease trends chart
+            const diseaseCtx = document.getElementById('diseaseChart').getContext('2d');
+            if (diseaseChart) diseaseChart.destroy();
+            
+            diseaseChart = new Chart(diseaseCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: diseaseTrends.map(d => d.keyword),
+                    datasets: [{
+                        data: diseaseTrends.map(d => d.avg_interest),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Refresh data
+        function refreshData() {
+            loadDashboardData();
+        }
+
+        // Collect data
+        async function collectData() {
+            try {
+                // Show loading message
+                showInfo('Starting data collection...');
+                
+                const response = await fetch('/api/collect-data', { method: 'POST' });
+                const result = await response.json();
+                
+                console.log('Data collection result:', result); // Debug log
+                
+                if (result.success) {
+                    const message = result.message || 'Data collection completed successfully';
+                    showSuccess(message);
+                    setTimeout(refreshData, 5000); // Refresh after 5 seconds
+                } else {
+                    const errorMsg = result.error || result.message || 'Data collection failed';
+                    showError('Data collection failed: ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('Error collecting data:', error);
+                showError('Failed to start data collection: ' + error.message);
+            }
+        }
+
+        // Train models
+        async function trainModels() {
+            try {
+                // Show loading message
+                showInfo('Starting model training...');
+                
+                const response = await fetch('/api/train-models', { method: 'POST' });
+                const result = await response.json();
+                
+                console.log('Model training result:', result); // Debug log
+                
+                if (result.success) {
+                    const message = result.message || 'Model training started successfully';
+                    showSuccess(message);
+                } else {
+                    const errorMsg = result.error || result.message || 'Model training failed';
+                    showError('Model training failed: ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('Error training models:', error);
+                showError('Failed to start model training: ' + error.message);
+            }
+        }
+
+        // Evaluate models
+        async function evaluateModels() {
+            try {
+                // Show loading message
+                showInfo('Evaluating models...');
+                
+                const response = await fetch('/api/evaluate-models');
+                const result = await response.json();
+                
+                console.log('Model evaluation result:', result); // Debug log
+                
+                if (result.success) {
+                    displayModelEvaluation(result.evaluation);
+                    showSuccess('Model evaluation completed');
+                } else {
+                    const errorMsg = result.error || result.message || 'Model evaluation failed';
+                    showError('Model evaluation failed: ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('Error evaluating models:', error);
+                showError('Failed to evaluate models: ' + error.message);
+            }
+        }
+
+        // Display model evaluation results
+        function displayModelEvaluation(evaluation) {
+            const container = document.getElementById('model-evaluation-container');
+            
+            if (!evaluation || Object.keys(evaluation).length === 0) {
+                container.innerHTML = '<div class="text-center text-muted"><i class="fas fa-info-circle"></i> No model evaluation data available</div>';
+                return;
+            }
+
+            let evaluationHtml = '<div class="row">';
+            
+            // Display model performance metrics
+            for (const [modelName, metrics] of Object.entries(evaluation)) {
+                evaluationHtml += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-robot"></i> ${modelName.replace('_', ' ').toUpperCase()}</h6>
+                            </div>
+                            <div class="card-body">
+                `;
+                
+                for (const [metric, value] of Object.entries(metrics)) {
+                    const percentage = typeof value === 'number' && value <= 1 ? (value * 100).toFixed(1) + '%' : value;
+                    evaluationHtml += `
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">${metric.replace('_', ' ').toUpperCase()}:</span>
+                            <strong>${percentage}</strong>
+                        </div>
+                    `;
+                }
+                
+                evaluationHtml += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            evaluationHtml += '</div>';
+            container.innerHTML = evaluationHtml;
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            // Create and show Bootstrap toast
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white bg-success border-0';
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            new bootstrap.Toast(toast).show();
+        }
+
+        // Show error message
+        function showError(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white bg-danger border-0';
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            new bootstrap.Toast(toast).show();
+        }
+
+        // Show info message
+        function showInfo(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white bg-info border-0';
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            new bootstrap.Toast(toast).show();
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            
+            // Auto-refresh every 5 minutes
+            setInterval(loadDashboardData, 300000);
+        });
+    </script>
+</body>
+</html>
+

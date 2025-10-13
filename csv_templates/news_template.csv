@@ -1,0 +1,6 @@
+title,content,source,url,published_at,county,sentiment_score,sentiment_label,health_relevance_score,keywords
+"Malaria Outbreak in Western Kenya","Health officials in Kisumu County have confirmed an increase in malaria cases. Local hospitals report treating numerous patients with fever and chills. The Ministry of Health has deployed response teams.",Daily Nation,https://www.nation.co.ke/kenya/health/malaria-outbreak-12345,2024-01-15 10:00:00,kisumu,-0.4,negative,0.90,"[""malaria"", ""kisumu"", ""outbreak""]"
+"Cholera Alert Issued for Coast Region","Mombasa County health officials have issued a cholera alert following confirmed cases. Residents are advised to boil water and maintain hygiene.",The Standard,https://www.standardmedia.co.ke/health/cholera-67890,2024-01-16 08:30:00,mombasa,-0.5,negative,0.95,"[""cholera"", ""mombasa"", ""alert""]"
+"Flu Cases Surge in Nairobi","Nairobi hospitals are experiencing an influx of flu patients. Health experts urge residents to practice good hygiene and seek medical care.",Capital FM,https://www.capitalfm.co.ke/news/flu-surge-11223,2024-01-17 12:00:00,nairobi,-0.3,negative,0.85,"[""flu"", ""nairobi""]"
+
+
