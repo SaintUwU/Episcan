@@ -1,13 +1,13 @@
 {
   "model_versions": {
     "random_forest": {
-      "path": "ml_models/saved_models\\random_forest_20251012_104925.joblib",
-      "timestamp": "20251012_104925",
-      "version": "20251012_104925"
+      "path": "ml_models/saved_models\\random_forest_20251019_123453.joblib",
+      "timestamp": "20251019_123453",
+      "version": "20251019_123453"
     }
   },
   "feature_names": [],
-  "training_timestamp": "20251012_104925",
+  "training_timestamp": "20251019_123453",
   "model_configs": {
     "random_forest": {
       "n_estimators": 100,

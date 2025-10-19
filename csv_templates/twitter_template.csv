@@ -4,3 +4,4 @@ tweet_id,text,username,created_at,location,county,sentiment_score,sentiment_labe
 11223,"Health alert: Cholera cases rising in coastal region",news_alert,2024-01-17 09:00:00,"Mombasa, Kenya",mombasa,-0.6,negative,50,80,"[""cholera"", ""alert""]"
 
 
+

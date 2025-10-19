@@ -74,7 +74,8 @@ class TwitterCollector:
             query = self._build_search_query()
             
             # Calculate start time
-            start_time = datetime.utcnow() - timedelta(days=days_back)
+            start_time = (datetime.utcnow() - timedelta(days=7)).isoformat("T") + "Z"
+
             
             # Search tweets
             tweets = tweepy.Paginator(
@@ -221,18 +222,41 @@ class TwitterCollector:
         """
         logger.info("Starting Twitter data collection...")
         
-        # Collect tweets
-        tweets = self.search_health_tweets(days_back, max_results)
-        
-        # Save to database
-        saved_count = self.save_tweets_to_db(tweets)
-        
-        return {
-            'collected': len(tweets),
-            'saved': saved_count,
-            'duplicates': len(tweets) - saved_count,
-            'collection_date': datetime.utcnow().isoformat()
-        }
+        try:
+            # Collect tweets
+            tweets = self.search_health_tweets(days_back, max_results)
+            
+            # Save to database
+            saved_count = self.save_tweets_to_db(tweets)
+            
+            return {
+                'collected': len(tweets),
+                'saved': saved_count,
+                'duplicates': len(tweets) - saved_count,
+                'collection_date': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "rate limit" in error_msg or "sleeping" in error_msg or "429" in error_msg:
+                logger.warning(f"Twitter API is sleeping (rate limited): {str(e)}")
+                return {
+                    'collected': 0,
+                    'saved': 0,
+                    'duplicates': 0,
+                    'collection_date': datetime.utcnow().isoformat(),
+                    'error': 'Twitter API sleeping (rate limited)',
+                    'skipped': True
+                }
+            else:
+                logger.error(f"Twitter collection failed: {str(e)}")
+                return {
+                    'collected': 0,
+                    'saved': 0,
+                    'duplicates': 0,
+                    'collection_date': datetime.utcnow().isoformat(),
+                    'error': str(e)
+                }
 
 if __name__ == "__main__":
     # Test the collector

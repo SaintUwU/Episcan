@@ -384,12 +384,29 @@ class DataProcessor:
         # Add additional features
         df = self._add_derived_features(df)
         
-        # Get feature names
-        feature_columns = [col for col in df.columns 
-                          if col not in ['id', 'text', 'title', 'county', 'created_at', 'date', 
-                                       'keywords', 'source', 'url', 'username', 'location',
-                                       'disease_type', 'outbreak_status', 'case_count',
-                                       'geo_location', 'keyword', 'source_type']]
+        # Get feature names (exclude string columns and non-numeric features)
+        exclude_columns = ['id', 'text', 'title', 'county', 'created_at', 'date', 
+                          'keywords', 'source', 'url', 'username', 'location',
+                          'disease_type', 'outbreak_status', 'case_count',
+                          'geo_location', 'keyword', 'source_type', 'sentiment_label']
+        
+        # Only include numeric columns
+        feature_columns = []
+        for col in df.columns:
+            if col not in exclude_columns and df[col].dtype in ['int64', 'float64', 'bool']:
+                feature_columns.append(col)
+        
+        # Handle any remaining non-numeric columns by converting them
+        for col in df.columns:
+            if col not in exclude_columns and col not in feature_columns:
+                try:
+                    # Try to convert to numeric
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    if not df[col].isna().all():
+                        feature_columns.append(col)
+                except:
+                    # Skip columns that can't be converted
+                    continue
         
         logger.info(f"ML dataset prepared: {len(df)} records, {len(feature_columns)} features")
         return df, feature_columns

@@ -73,7 +73,7 @@ class NewsCollector:
     
     def collect_from_news_api(self, days_back: int = 7) -> List[Dict]:
         """
-        Collect news using News API
+        Collect news using News API with Kenya-specific queries
         
         Args:
             days_back: Number of days to search back
@@ -89,11 +89,28 @@ class NewsCollector:
             # Calculate date range
             from_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
             
-            # Collect from each Kenyan source
+            # Search for Kenya health news using keywords
             all_articles = []
-            for source_id, source_info in self.news_sources.items():
+            
+            # Health-related queries for Kenya
+            health_queries = [
+                'health Kenya',
+                'disease Kenya', 
+                'outbreak Kenya',
+                'epidemic Kenya',
+                'malaria Kenya',
+                'cholera Kenya',
+                'covid Kenya',
+                'flu Kenya',
+                'hospital Kenya',
+                'clinic Kenya',
+                'ministry of health Kenya',
+                'moh Kenya'
+            ]
+            
+            for query in health_queries:
                 try:
-                    articles = self._fetch_from_news_api(source_info['api_source'], from_date)
+                    articles = self._search_news_api(query, from_date)
                     all_articles.extend(articles)
                     
                     # Rate limiting
@@ -101,22 +118,30 @@ class NewsCollector:
                     time.sleep(1)
                     
                 except Exception as e:
-                    logger.warning(f"Error collecting from {source_info['name']}: {str(e)}")
+                    logger.warning(f"Error searching for '{query}': {str(e)}")
                     continue
             
-            logger.info(f"Collected {len(all_articles)} articles from News API")
-            return all_articles
+            # Remove duplicates based on URL
+            unique_articles = []
+            seen_urls = set()
+            for article in all_articles:
+                if article.get('url') and article['url'] not in seen_urls:
+                    unique_articles.append(article)
+                    seen_urls.add(article['url'])
+            
+            logger.info(f"Collected {len(unique_articles)} unique articles from News API")
+            return unique_articles
             
         except Exception as e:
             logger.error(f"Error collecting from News API: {str(e)}")
             return []
     
-    def _fetch_from_news_api(self, source: str, from_date: str) -> List[Dict]:
-        """Fetch articles from specific source using News API"""
+    def _search_news_api(self, query: str, from_date: str) -> List[Dict]:
+        """Search News API using query terms"""
         try:
             url = 'https://newsapi.org/v2/everything'
             params = {
-                'sources': source,
+                'q': query,
                 'from': from_date,
                 'language': 'en',
                 'sortBy': 'publishedAt',
@@ -134,14 +159,14 @@ class NewsCollector:
             health_articles = []
             for article in articles:
                 if self._is_health_related(article):
-                    processed_article = self._process_news_article(article, source)
+                    processed_article = self._process_news_article(article, 'News API')
                     if processed_article:
                         health_articles.append(processed_article)
             
             return health_articles
             
         except Exception as e:
-            logger.error(f"Error fetching from News API source {source}: {str(e)}")
+            logger.error(f"Error searching News API for '{query}': {str(e)}")
             return []
     
     def collect_from_rss(self, days_back: int = 7) -> List[Dict]:

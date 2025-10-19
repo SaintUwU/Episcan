@@ -151,3 +151,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+#Other
+ML_TRAINING_GUIDE.md
+loginTest.py
+seed_users.py

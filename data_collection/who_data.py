@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import json
+import feedparser
 from bs4 import BeautifulSoup
 from app import db
 from app.models.data_models import WHOData
@@ -164,30 +165,35 @@ class WHODataCollector:
             logger.error(f"Error collecting from MOH Kenya: {str(e)}")
             return []
     
-    def _fetch_from_rss(self, rss_url: str, source_name: str) -> List[Dict]:
-        """Fetch data from RSS feed"""
-        try:
-            response = requests.get(rss_url, timeout=30)
-            response.raise_for_status()
+    import feedparser
+
+def _fetch_from_rss(self, rss_url: str, source_name: str) -> List[Dict]:
+    """Fetch data from RSS feed using feedparser"""
+    try:
+        feed = feedparser.parse(rss_url)
+        data_items = []
+        for entry in feed.entries:
+            published_at = None
+            if hasattr(entry, 'published_parsed'):
+                from datetime import datetime
+                published_at = datetime(*entry.published_parsed[:6])
+            elif hasattr(entry, 'updated_parsed'):
+                published_at = datetime(*entry.updated_parsed[:6])
+
+            data_items.append({
+                'title': getattr(entry, 'title', ''),
+                'content': getattr(entry, 'summary', ''),
+                'url': getattr(entry, 'link', ''),
+                'source': source_name,
+                'published_at': published_at or datetime.now()
+            })
+        return data_items
+    except Exception as e:
+        logger.error(f"Feedparser error for {rss_url}: {str(e)}")
+        return []
+
             
-            soup = BeautifulSoup(response.content, 'xml')
-            items = soup.find_all('item')
-            
-            data_items = []
-            for item in items:
-                try:
-                    data_item = self._parse_rss_item(item, source_name)
-                    if data_item:
-                        data_items.append(data_item)
-                except Exception as e:
-                    logger.warning(f"Error parsing RSS item: {str(e)}")
-                    continue
-            
-            return data_items
-            
-        except Exception as e:
-            logger.error(f"Error fetching RSS from {rss_url}: {str(e)}")
-            return []
+        
     
     def _parse_rss_item(self, item, source_name: str) -> Optional[Dict]:
         """Parse individual RSS item"""

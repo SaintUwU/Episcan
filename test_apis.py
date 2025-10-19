@@ -49,9 +49,25 @@ def test_twitter_api():
             print(" Twitter API working but no tweets found")
             return True
             
-    except Exception as e:
-        print(f"Twitter API error: {str(e)}")
+    except tweepy.TooManyRequests as e:
+        print(f" Twitter API sleeping (rate limited): {str(e)}")
+        print("  Skipping Twitter API test - API is rate limited")
+        return "skipped"
+    except tweepy.Unauthorized as e:
+        print(f" Twitter API unauthorized: {str(e)}")
         return False
+    except tweepy.Forbidden as e:
+        print(f" Twitter API forbidden: {str(e)}")
+        return False
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "rate limit" in error_msg or "sleeping" in error_msg or "429" in error_msg:
+            print(f" Twitter API sleeping (rate limited): {str(e)}")
+            print("  Skipping Twitter API test - API is rate limited")
+            return "skipped"
+        else:
+            print(f" Twitter API error: {str(e)}")
+            return False
 
 def test_news_api():
     """Test News API credentials"""
@@ -148,20 +164,42 @@ def main():
     print("\n Test Results Summary:")
     print("-" * 30)
     
+    skipped_services = []
+    failed_services = []
+    passed_services = []
+    
     for service, success in results.items():
-        status = " PASS" if success else " FAIL"
+        if success == "skipped":
+            status = " SKIPPED"
+            skipped_services.append(service)
+        elif success:
+            status = " PASS"
+            passed_services.append(service)
+        else:
+            status = " FAIL"
+            failed_services.append(service)
         print(f"{service.upper()}: {status}")
     
     # Overall result
-    all_passed = all(results.values())
+    all_passed = all(result for result in results.values() if result != "skipped")
+    has_skipped = any(result == "skipped" for result in results.values())
     
     print("\n" + "=" * 40)
-    if all_passed:
-        print("🎉 All tests passed! Your API keys are working correctly.")
-        print("You can now run: python app.py collect-data")
+    if all_passed and not failed_services:
+        if has_skipped:
+            print("✅ Core services working! Some services were skipped due to rate limits.")
+            print("You can now run: python quick_data_boost.py")
+        else:
+            print("🎉 All tests passed! Your API keys are working correctly.")
+            print("You can now run: python quick_data_boost.py")
+    elif failed_services:
+        print("⚠️  Some tests failed. Please check your API key configuration.")
+        print("See AUTHENTICATION_SETUP.md for detailed setup instructions.")
+        if skipped_services:
+            print(f"Skipped services (rate limited): {', '.join(skipped_services)}")
     else:
-        print("  Some tests failed. Please check your API key configuration.")
-        print("See API_KEYS_SETUP.md for detailed setup instructions.")
+        print("✅ Tests completed with some services skipped due to rate limits.")
+        print("You can still run data collection with available services.")
     
     return all_passed
 

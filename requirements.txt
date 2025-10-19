@@ -14,10 +14,11 @@ pytrends==4.9.2
 requests==2.31.0
 beautifulsoup4==4.12.2
 newsapi-python==0.2.6
+feedparser==6.0.10
 
 # Data Processing & NLP
 pandas==2.1.1
-numpy==1.24.3
+numpy==1.25.2
 scikit-learn==1.3.0
 nltk==3.8.1
 spacy==3.6.1
