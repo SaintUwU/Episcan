@@ -171,6 +171,13 @@ def print_training_results(results: dict):
                 print(f"    Precision: {test_metrics.get('precision', 0):.4f}")
                 print(f"    Recall: {test_metrics.get('recall', 0):.4f}")
                 print(f"    F1-Score: {test_metrics.get('f1_score', 0):.4f}")
+                
+                # Display confusion matrix if available
+                if 'confusion_matrix' in test_metrics:
+                    cm = np.array(test_metrics['confusion_matrix'])
+                    from .model_trainer import ModelTrainer
+                    trainer = ModelTrainer()
+                    trainer.print_confusion_matrix(cm, model_name)
     
     print("\n" + "="*60)
 
@@ -257,10 +264,10 @@ def main():
         )
     
     if success:
-        print("\n✅ Process completed successfully!")
+        print("\n[SUCCESS] Process completed successfully!")
         sys.exit(0)
     else:
-        print("\n❌ Process failed!")
+        print("\n[ERROR] Process failed!")
         sys.exit(1)
 
 if __name__ == "__main__":

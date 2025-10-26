@@ -6,8 +6,8 @@ import os
 from unittest.mock import Mock, patch
 from data_collection.twitter_collector import TwitterCollector
 from data_collection.google_trends import GoogleTrendsCollector
-from data_collection.news_collector import NewsCollector
 from data_collection.who_data import WHODataCollector
+from data_collection.who_gho_collector import WHOGHOCollector
 
 class TestTwitterCollector:
     """Test Twitter data collector"""
@@ -60,32 +60,31 @@ class TestGoogleTrendsCollector:
         assert len(collector.health_keywords) > 0
         assert len(collector.kenya_health_terms) > 0
 
-class TestNewsCollector:
-    """Test News data collector"""
+class TestWHOGHOCollector:
+    """Test WHO GHO data collector"""
     
     def test_init(self):
-        """Test NewsCollector initialization"""
-        collector = NewsCollector()
-        assert len(collector.news_sources) > 0
-        assert len(collector.health_keywords) > 0
+        """Test WHOGHOCollector initialization"""
+        collector = WHOGHOCollector()
+        assert collector.base_url == "https://apps.who.int/gho/athena/api"
+        assert len(collector.kenya_indicators) > 0
+        assert collector.kenya_code == "KEN"
     
-    def test_is_health_related(self):
-        """Test health relevance detection"""
-        collector = NewsCollector()
+    def test_determine_outbreak_status(self):
+        """Test outbreak status determination"""
+        collector = WHOGHOCollector()
         
-        # Health-related article
-        health_article = {
-            'title': 'Malaria outbreak in Kenya',
-            'content': 'Health officials report increased cases'
-        }
-        assert collector._is_health_related(health_article) == True
+        # High case count should be confirmed outbreak
+        status = collector._determine_outbreak_status(50000, 'malaria')
+        assert status == 'confirmed'
         
-        # Non-health article
-        non_health_article = {
-            'title': 'Football match results',
-            'content': 'Team wins championship'
-        }
-        assert collector._is_health_related(non_health_article) == False
+        # Medium case count should be suspected outbreak
+        status = collector._determine_outbreak_status(10000, 'malaria')
+        assert status == 'suspected'
+        
+        # Low case count should be no outbreak
+        status = collector._determine_outbreak_status(1000, 'malaria')
+        assert status == 'none'
 
 class TestWHODataCollector:
     """Test WHO data collector"""

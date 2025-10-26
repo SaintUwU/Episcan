@@ -1,13 +1,18 @@
 {
   "model_versions": {
     "random_forest": {
-      "path": "ml_models/saved_models\\random_forest_20251019_123342.joblib",
-      "timestamp": "20251019_123342",
-      "version": "20251019_123342"
+      "path": "ml_models/saved_models\\random_forest_20251026_122849.joblib",
+      "timestamp": "20251026_122849",
+      "version": "20251026_122849"
+    },
+    "neural_network": {
+      "path": "ml_models/saved_models\\neural_network_20251026_122849.joblib",
+      "timestamp": "20251026_122849",
+      "version": "20251026_122849"
     }
   },
   "feature_names": [],
-  "training_timestamp": "20251019_123342",
+  "training_timestamp": "20251026_122849",
   "model_configs": {
     "random_forest": {
       "n_estimators": 100,

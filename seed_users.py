@@ -42,25 +42,25 @@ def create_seed_users():
             db.session.add(practitioner)
             db.session.commit()
             
-            print("✅ Users created successfully!")
-            print("\n📋 Login Credentials:")
+            print(" Users created successfully!")
+            print("\n Login Credentials:")
             print("=" * 50)
-            print("🔑 ADMIN USER:")
+            print(" ADMIN USER:")
             print(f"   Email: {admin.email}")
             print(f"   Password: admin123")
             print(f"   Role: {admin.role.upper()}")
             print(f"   Dashboard: /admin/dashboard")
-            print("\n👩‍⚕️ MEDICAL PRACTITIONER:")
+            print("\n MEDICAL PRACTITIONER:")
             print(f"   Email: {practitioner.email}")
             print(f"   Password: user123")
             print(f"   Role: {practitioner.role.upper()}")
             print(f"   Dashboard: /user/dashboard")
-            print("\n⚠️  IMPORTANT: Change these passwords after first login!")
+            print("\n  IMPORTANT: Change these passwords after first login!")
             print("=" * 50)
             
         except Exception as e:
             db.session.rollback()
-            print(f"❌ Error creating users: {str(e)}")
+            print(f" Error creating users: {str(e)}")
 
 if __name__ == "__main__":
     create_seed_users()

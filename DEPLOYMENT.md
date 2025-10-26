@@ -61,48 +61,6 @@
 
 ## Production Deployment
 
-### Using Docker
-
-1. **Create Dockerfile**
-   ```dockerfile
-   FROM python:3.9-slim
-   
-   WORKDIR /app
-   COPY requirements.txt .
-   RUN pip install -r requirements.txt
-   
-   COPY . .
-   EXPOSE 5000
-   
-   CMD ["python", "app.py"]
-   ```
-
-2. **Build and Run**
-   ```bash
-   docker build -t episcan .
-   docker run -p 5000:5000 episcan
-   ```
-
-### Using Heroku
-
-1. **Create Procfile**
-   ```
-   web: python app.py
-   worker: python run_scheduler.py
-   ```
-
-2. **Deploy**
-   ```bash
-   heroku create episcan-app
-   heroku addons:create heroku-postgresql:hobby-dev
-   git push heroku main
-   ```
-
-### Using AWS/GCP/Azure
-
-1. **Set up PostgreSQL database**
-2. **Configure environment variables**
-3. **Deploy using your preferred method**
 
 ## Data Collection Schedule
 
@@ -114,28 +72,11 @@ The system automatically collects data on the following schedule:
 - **WHO Data**: Daily at 8 AM
 - **Full Collection**: Daily at midnight
 
-## Monitoring
 
-### Health Check
-- Endpoint: `GET /api/health`
-- Returns system status and timestamp
-
-### Statistics
-- Endpoint: `GET /api/stats`
-- Returns data collection statistics
-
-### Logs
-- Application logs are written to console
-- For production, configure proper logging
 
 ## Troubleshooting
 
 ### Common Issues
-
-1. **Database Connection Error**
-   - Check DATABASE_URL in .env
-   - Ensure PostgreSQL is running
-   - Verify database exists
 
 2. **API Rate Limits**
    - Twitter API has rate limits
@@ -146,13 +87,6 @@ The system automatically collects data on the following schedule:
    - Run `pip install -r requirements.txt`
    - Check Python version compatibility
 
-### Debug Mode
-
-Enable debug mode by setting in `.env`:
-```
-FLASK_DEBUG=True
-FLASK_ENV=development
-```
 
 ## Security Considerations
 
@@ -161,60 +95,4 @@ FLASK_ENV=development
    - Use environment variables
    - Rotate keys regularly
 
-2. **Database Security**
-   - Use strong passwords
-   - Enable SSL connections
-   - Restrict network access
-
-3. **Application Security**
-   - Use HTTPS in production
-   - Implement proper authentication
-   - Regular security updates
-
-## Performance Optimization
-
-1. **Database Indexing**
-   - Add indexes on frequently queried columns
-   - Monitor query performance
-
-2. **Caching**
-   - Implement Redis for caching
-   - Cache API responses
-
-3. **Scaling**
-   - Use load balancers
-   - Implement horizontal scaling
-   - Monitor resource usage
-
-## Backup and Recovery
-
-1. **Database Backups**
-   ```bash
-   pg_dump episcan > backup.sql
-   ```
-
-2. **Data Backup**
-   - Regular exports of collected data
-   - Store backups securely
-
-3. **Recovery Procedures**
-   - Document recovery steps
-   - Test backup restoration
-
-## Maintenance
-
-1. **Regular Updates**
-   - Update dependencies
-   - Apply security patches
-   - Monitor for new features
-
-2. **Data Cleanup**
-   - Archive old data
-   - Clean up temporary files
-   - Monitor disk usage
-
-3. **Performance Monitoring**
-   - Monitor response times
-   - Track error rates
-   - Analyze usage patterns
 

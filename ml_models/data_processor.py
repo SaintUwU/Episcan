@@ -305,44 +305,39 @@ class DataProcessor:
         """Create target variables for training (synthetic for now)"""
         logger.info("Creating training targets...")
         
-        # This is a simplified approach - in practice, you'd need actual outbreak data
-        # For now, we'll create synthetic targets based on health indicators
+        # Create synthetic targets based on text content only (to avoid data leakage)
+        # This simulates real outbreak detection based on content analysis
         
-        # Calculate health relevance score
         health_scores = []
         for _, row in df.iterrows():
             score = 0
             
-            # Text-based indicators
+            # Only use text-based indicators to avoid data leakage
             text = str(row.get('text', '')).lower()
+            title = str(row.get('title', '')).lower()
+            combined_text = f"{text} {title}"
             
-            # Disease keywords
-            disease_keywords = ['flu', 'malaria', 'cholera', 'covid', 'fever', 'outbreak', 'epidemic']
-            score += sum(1 for keyword in disease_keywords if keyword in text)
+            # Disease keywords (more specific and severe)
+            severe_disease_keywords = ['outbreak', 'epidemic', 'pandemic', 'alert', 'emergency', 'crisis']
+            moderate_disease_keywords = ['flu', 'malaria', 'cholera', 'covid', 'fever', 'sick', 'illness']
+            mild_disease_keywords = ['health', 'hospital', 'clinic', 'doctor', 'nurse']
             
-            # Sentiment indicators
-            if row.get('sentiment_score', 0) < -0.1:  # Negative sentiment
+            # Weight by severity
+            score += sum(3 for keyword in severe_disease_keywords if keyword in combined_text)
+            score += sum(2 for keyword in moderate_disease_keywords if keyword in combined_text)
+            score += sum(1 for keyword in mild_disease_keywords if keyword in combined_text)
+            
+            # Geographic concentration (multiple mentions of same county)
+            county_mentions = sum(1 for county in self.kenyan_counties if county in combined_text)
+            if county_mentions > 1:
                 score += 1
             
-            # Social engagement (for social media)
-            if row.get('source_type') == 'twitter':
-                engagement = row.get('retweet_count', 0) + row.get('favorite_count', 0)
-                if engagement > 10:
-                    score += 1
-            
-            # Interest score (for trends)
-            if row.get('source_type') == 'trends':
-                interest = row.get('interest_score', 0)
-                if interest > 50:
-                    score += 1
-            
-            # WHO outbreak status
-            if row.get('source_type') == 'who':
-                outbreak_status = row.get('outbreak_status', '')
-                if 'confirmed' in outbreak_status.lower():
-                    score += 2
-                elif 'suspected' in outbreak_status.lower():
-                    score += 1
+            # Temporal patterns (recent content gets higher weight)
+            days_old = (datetime.now() - row.get('created_at', datetime.now())).days
+            if days_old <= 1:
+                score += 2
+            elif days_old <= 7:
+                score += 1
             
             health_scores.append(score)
         
@@ -350,12 +345,9 @@ class DataProcessor:
         max_score = max(health_scores) if health_scores and max(health_scores) > 0 else 1
         health_scores_normalized = [score / max_score for score in health_scores]
         
-        # Create binary target (outbreak occurred or not)
-        # Use median threshold for balanced classes
-        if health_scores_normalized:
-            threshold = np.median(health_scores_normalized)
-        else:
-            threshold = 0.3
+      
+        # Use a higher threshold to avoid too many false positives
+        threshold = np.percentile(health_scores_normalized, 70)  # Top 30% are "outbreaks"
         
         df['outbreak_occurred'] = (np.array(health_scores_normalized) > threshold).astype(int)
         df['health_relevance_score_computed'] = health_scores_normalized
@@ -388,7 +380,8 @@ class DataProcessor:
         exclude_columns = ['id', 'text', 'title', 'county', 'created_at', 'date', 
                           'keywords', 'source', 'url', 'username', 'location',
                           'disease_type', 'outbreak_status', 'case_count',
-                          'geo_location', 'keyword', 'source_type', 'sentiment_label']
+                          'geo_location', 'keyword', 'source_type', 'sentiment_label',
+                          'health_relevance_score_computed', 'health_relevance_score', 'outbreak_occurred']
         
         # Only include numeric columns
         feature_columns = []
@@ -410,6 +403,80 @@ class DataProcessor:
         
         logger.info(f"ML dataset prepared: {len(df)} records, {len(feature_columns)} features")
         return df, feature_columns
+    
+    def _load_existing_training_data(self) -> pd.DataFrame:
+        """Load existing training data from CSV files"""
+        import glob
+        
+        # Look for existing training data files
+        pattern = "ml_models/training_data_*.csv"
+        files = glob.glob(pattern)
+        
+        if not files:
+            logger.info("No existing training data files found")
+            return pd.DataFrame()
+        
+        # Get the file with the most records (prefer larger datasets)
+        best_file = None
+        max_records = 0
+        
+        for file in files:
+            try:
+                # Quick count of records
+                with open(file, 'r', encoding='utf-8') as f:
+                    record_count = sum(1 for line in f) - 1  # Subtract header
+                
+                if record_count > max_records:
+                    max_records = record_count
+                    best_file = file
+            except Exception:
+                continue
+        
+        if not best_file:
+            logger.info("No valid training data files found")
+            return pd.DataFrame()
+        
+        logger.info(f"Loading existing training data from: {best_file} ({max_records} records)")
+        
+        try:
+            df = pd.read_csv(best_file)
+            logger.info(f"Loaded {len(df)} records from existing data")
+            return df
+        except Exception as e:
+            logger.error(f"Error loading existing training data: {str(e)}")
+            return pd.DataFrame()
+    
+    def prepare_ml_dataset_with_existing(self, use_existing: bool = True, days_back: int = 90) -> Tuple[pd.DataFrame, List[str]]:
+        """Prepare ML dataset using existing data if available"""
+        logger.info("Preparing ML dataset...")
+        
+        # Try to use existing training data first
+        if use_existing:
+            existing_data = self._load_existing_training_data()
+            if not existing_data.empty:
+                logger.info(f"Using existing training data: {len(existing_data)} records")
+                feature_columns = self._get_feature_columns(existing_data)
+                return existing_data, feature_columns
+        
+        # Fall back to collecting fresh data
+        return self.prepare_ml_dataset(days_back)
+    
+    def _get_feature_columns(self, df: pd.DataFrame) -> List[str]:
+        """Get feature column names from dataframe"""
+        # Get feature names (exclude string columns and non-numeric features)
+        exclude_columns = ['id', 'text', 'title', 'county', 'created_at', 'date', 
+                          'keywords', 'source', 'url', 'username', 'location',
+                          'disease_type', 'outbreak_status', 'case_count',
+                          'geo_location', 'keyword', 'source_type', 'sentiment_label',
+                          'health_relevance_score_computed', 'health_relevance_score', 'outbreak_occurred']
+        
+        # Only include numeric columns
+        feature_columns = []
+        for col in df.columns:
+            if col not in exclude_columns and df[col].dtype in ['int64', 'float64', 'bool']:
+                feature_columns.append(col)
+        
+        return feature_columns
     
     def _add_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add derived features to the dataset"""

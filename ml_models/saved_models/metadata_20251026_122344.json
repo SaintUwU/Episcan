@@ -1,0 +1,48 @@
+{
+  "model_versions": {
+    "random_forest": {
+      "path": "ml_models/saved_models\\random_forest_20251026_122344.joblib",
+      "timestamp": "20251026_122344",
+      "version": "20251026_122344"
+    }
+  },
+  "feature_names": [],
+  "training_timestamp": "20251026_122344",
+  "model_configs": {
+    "random_forest": {
+      "n_estimators": 100,
+      "max_depth": 10,
+      "min_samples_split": 5,
+      "min_samples_leaf": 2,
+      "random_state": 42,
+      "n_jobs": -1
+    },
+    "neural_network": {
+      "hidden_layer_sizes": [
+        100,
+        50,
+        25
+      ],
+      "activation": "relu",
+      "solver": "adam",
+      "alpha": 0.001,
+      "learning_rate": "adaptive",
+      "max_iter": 1000,
+      "random_state": 42
+    },
+    "tensorflow": {
+      "input_dim": null,
+      "layers": [
+        128,
+        64,
+        32,
+        16
+      ],
+      "dropout_rate": 0.3,
+      "learning_rate": 0.001,
+      "epochs": 100,
+      "batch_size": 32,
+      "patience": 10
+    }
+  }
+}

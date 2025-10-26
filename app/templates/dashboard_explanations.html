@@ -1,0 +1,105 @@
+<!-- Dashboard Explanations Modal -->
+<div class="modal fade" id="explanationsModal" tabindex="-1" aria-labelledby="explanationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="explanationsModalLabel">
+                    <i class="fas fa-info-circle"></i> Dashboard Guide
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-percentage text-primary"></i> What Do the Percentages Mean?</h6>
+                        <div class="alert alert-info">
+                            <strong>Outbreak Probability:</strong> The model's confidence that a disease outbreak is occurring or will occur in the next 7 days.
+                            <ul class="mt-2 mb-0">
+                                <li><strong>0-30%:</strong> Very low risk - Normal health conditions</li>
+                                <li><strong>30-60%:</strong> Moderate risk - Monitor closely</li>
+                                <li><strong>60-80%:</strong> High risk - Prepare response teams</li>
+                                <li><strong>80-100%:</strong> Very high risk - Immediate action required</li>
+                            </ul>
+                        </div>
+                        
+                        <h6><i class="fas fa-chart-line text-success"></i> Model Accuracy</h6>
+                        <div class="alert alert-success">
+                            <strong>72-78% Accuracy:</strong> The model correctly predicts outbreaks 72-78% of the time. This is realistic for disease prediction - no model can be 100% accurate due to the complexity of disease spread.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-exclamation-triangle text-warning"></i> Risk Levels Explained</h6>
+                        <div class="alert alert-warning">
+                            <strong>LOW RISK:</strong>
+                            <ul class="mt-1 mb-2">
+                                <li>Normal health discussions</li>
+                                <li>Routine health updates</li>
+                                <li>No concerning patterns detected</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <strong>MEDIUM RISK:</strong>
+                            <ul class="mt-1 mb-2">
+                                <li>Increased health-related activity</li>
+                                <li>Some concerning keywords detected</li>
+                                <li>Monitor for escalation</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-danger">
+                            <strong>HIGH RISK:</strong>
+                            <ul class="mt-1 mb-2">
+                                <li>Multiple outbreak indicators</li>
+                                <li>Geographic concentration of cases</li>
+                                <li>Urgent action recommended</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6><i class="fas fa-brain text-primary"></i> How the Model Works</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <i class="fas fa-newspaper fa-2x text-primary mb-2"></i>
+                                <h6 class="card-title">News Analysis</h6>
+                                <p class="card-text small">Monitors health news from Kenyan media for outbreak reports</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <i class="fas fa-comments fa-2x text-info mb-2"></i>
+                                <h6 class="card-title">Social Media</h6>
+                                <p class="card-text small">Analyzes Twitter posts for health discussions and symptoms</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-search fa-2x text-success mb-2"></i>
+                                <h6 class="card-title">Search Trends</h6>
+                                <p class="card-text small">Tracks Google searches for health-related terms</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6><i class="fas fa-map-marker-alt text-danger"></i> Geographic Focus</h6>
+                    <p class="small">The system monitors all 47 Kenyan counties and can identify specific high-risk areas. When multiple sources mention the same county with health concerns, the risk level increases.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

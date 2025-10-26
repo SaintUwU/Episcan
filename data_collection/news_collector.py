@@ -1,13 +1,13 @@
 """
-News data collector for Kenyan health-related articles
+News API data collector for EpiScan
+Collects health-related news from various sources
 """
 import requests
 import os
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
-import re
-from bs4 import BeautifulSoup
+import time
 from app import db
 from app.models.data_models import NewsData
 
@@ -16,304 +16,381 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class NewsCollector:
-    """Collects health-related news from Kenyan sources"""
+    """Collects health-related news from various sources"""
     
     def __init__(self):
-        """Initialize news collector"""
+        """Initialize News collector"""
         self.news_api_key = os.getenv('NEWS_API_KEY')
+        self.base_url = "https://newsapi.org/v2/everything"
         
-        # Kenyan news sources
-        self.news_sources = {
-            'the-star': {
-                'name': 'The Star',
-                'url': 'https://www.the-star.co.ke',
-                'rss': 'https://www.the-star.co.ke/rss',
-                'api_source': 'the-star'
-            },
-            'standard-media': {
-                'name': 'Standard Media',
-                'url': 'https://www.standardmedia.co.ke',
-                'rss': 'https://www.standardmedia.co.ke/rss',
-                'api_source': 'standard-media'
-            },
-            'citizen-tv': {
-                'name': 'Citizen TV',
-                'url': 'https://citizentv.co.ke',
-                'rss': 'https://citizentv.co.ke/rss',
-                'api_source': 'kenya-citizen-tv'
-            },
-            'nation': {
-                'name': 'Daily Nation',
-                'url': 'https://www.nation.co.ke',
-                'rss': 'https://www.nation.co.ke/rss',
-                'api_source': 'nation'
-            }
-        }
-        
-        # Health-related keywords
-        self.health_keywords = [
-            'health', 'disease', 'outbreak', 'epidemic', 'flu', 'malaria', 'cholera',
-            'covid', 'covid-19', 'fever', 'cough', 'sick', 'illness', 'hospital',
-            'clinic', 'doctor', 'nurse', 'medication', 'vaccine', 'vaccination',
-            'dengue', 'typhoid', 'diarrhea', 'pneumonia', 'tuberculosis', 'tb',
-            'moh', 'ministry of health', 'who', 'world health organization'
-        ]
-        
-        # Kenyan counties for geolocation
-        self.kenyan_counties = [
-            'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Malindi',
-            'Kitale', 'Garissa', 'Kakamega', 'Meru', 'Nyeri', 'Machakos', 'Kisii',
-            'Kericho', 'Bungoma', 'Busia', 'Vihiga', 'Siaya', 'Homa Bay', 'Migori',
-            'Nyamira', 'Trans Nzoia', 'Uasin Gishu', 'Elgeyo Marakwet', 'Nandi',
-            'Baringo', 'Laikipia', 'Narok', 'Kajiado', 'Bomet', 'West Pokot',
-            'Samburu', 'Turkana', 'Wajir', 'Mandera', 'Marsabit', 'Isiolo',
-            'Tharaka Nithi', 'Embu', 'Kitui', 'Makueni', 'Taita Taveta', 'Kwale',
-            'Kilifi', 'Tana River', 'Lamu'
-        ]
-    
-    def collect_from_news_api(self, days_back: int = 7) -> List[Dict]:
-        """
-        Collect news using News API with Kenya-specific queries
-        
-        Args:
-            days_back: Number of days to search back
-            
-        Returns:
-            List of news articles
-        """
         if not self.news_api_key:
-            logger.warning("News API key not found, skipping API collection")
-            return []
+            logger.warning("NEWS_API_KEY not set. News collection will be limited.")
+        
+        # Health-related keywords for Kenya
+        self.health_keywords = [
+            'malaria', 'tuberculosis', 'tb', 'hiv', 'aids', 'cholera', 'influenza', 'flu',
+            'dengue', 'yellow fever', 'measles', 'mumps', 'rubella', 'polio', 'covid',
+            'outbreak', 'epidemic', 'disease', 'health', 'medical', 'hospital', 'clinic',
+            'vaccination', 'immunization', 'public health', 'ministry of health'
+        ]
+        
+        # Kenya-specific health terms
+        self.kenya_health_terms = [
+            'kenya health', 'kenya ministry of health', 'kenya malaria', 'kenya tb',
+            'kenya cholera', 'kenya outbreak', 'kenya epidemic', 'kenya vaccination',
+            'nairobi health', 'mombasa health', 'kisumu health', 'nakuru health'
+        ]
+        
+        # News sources to prioritize
+        self.news_sources = [
+            'bbc-news', 'cnn', 'reuters', 'associated-press', 'al-jazeera-english',
+            'the-guardian-uk', 'independent', 'daily-mail', 'metro', 'mirror'
+        ]
+        
+        logger.info("News Collector initialized successfully")
+    
+    def collect_and_save(self, days_back: int = 7) -> Dict:
+        """Collect and save news data"""
+        logger.info("Starting news data collection...")
+        
+        try:
+            # Collect news data
+            news_data = self._collect_news_data(days_back)
+            
+            if not news_data:
+                logger.warning("No news data collected")
+                return {'saved': 0, 'total_collected': 0, 'errors': ['No data collected']}
+            
+            # Save to database
+            saved_count = self._save_news_data(news_data)
+            
+            logger.info(f"News collection completed: {saved_count} records saved")
+            return {
+                'saved': saved_count,
+                'total_collected': len(news_data),
+                'errors': []
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in news collection: {str(e)}")
+            return {'saved': 0, 'total_collected': 0, 'errors': [str(e)]}
+    
+    def _collect_news_data(self, days_back: int) -> List[Dict]:
+        """Collect news data from various sources"""
+        all_news = []
+        
+        # Collect from News API
+        if self.news_api_key:
+            news_api_data = self._collect_from_news_api(days_back)
+            all_news.extend(news_api_data)
+        
+        # Collect from RSS feeds as fallback
+        rss_data = self._collect_from_rss_feeds(days_back)
+        all_news.extend(rss_data)
+        
+        # Remove duplicates based on URL
+        unique_news = []
+        seen_urls = set()
+        
+        for article in all_news:
+            if article.get('url') not in seen_urls:
+                unique_news.append(article)
+                seen_urls.add(article.get('url'))
+        
+        logger.info(f"Collected {len(unique_news)} unique news articles")
+        return unique_news
+    
+    def _collect_from_news_api(self, days_back: int) -> List[Dict]:
+        """Collect data from News API"""
+        news_data = []
         
         try:
             # Calculate date range
-            from_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days_back)
             
-            # Search for Kenya health news using keywords
-            all_articles = []
-            
-            # Health-related queries for Kenya
-            health_queries = [
-                'health Kenya',
-                'disease Kenya', 
-                'outbreak Kenya',
-                'epidemic Kenya',
-                'malaria Kenya',
-                'cholera Kenya',
-                'covid Kenya',
-                'flu Kenya',
-                'hospital Kenya',
-                'clinic Kenya',
-                'ministry of health Kenya',
-                'moh Kenya'
-            ]
-            
-            for query in health_queries:
+            # Search for health-related news
+            for keyword in self.health_keywords[:5]:  # Limit to avoid rate limits
                 try:
-                    articles = self._search_news_api(query, from_date)
-                    all_articles.extend(articles)
+                    params = {
+                        'q': f"{keyword} AND kenya",
+                        'from': start_date.strftime('%Y-%m-%d'),
+                        'to': end_date.strftime('%Y-%m-%d'),
+                        'language': 'en',
+                        'sortBy': 'publishedAt',
+                        'pageSize': 20,
+                        'apiKey': self.news_api_key
+                    }
+                    
+                    response = requests.get(self.base_url, params=params, timeout=30)
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    articles = data.get('articles', [])
+                    
+                    for article in articles:
+                        if self._is_health_related(article):
+                            processed_article = self._process_news_article(article)
+                            if processed_article:
+                                news_data.append(processed_article)
                     
                     # Rate limiting
-                    import time
                     time.sleep(1)
                     
                 except Exception as e:
-                    logger.warning(f"Error searching for '{query}': {str(e)}")
+                    logger.warning(f"Error collecting news for keyword '{keyword}': {str(e)}")
                     continue
             
-            # Remove duplicates based on URL
-            unique_articles = []
-            seen_urls = set()
-            for article in all_articles:
-                if article.get('url') and article['url'] not in seen_urls:
-                    unique_articles.append(article)
-                    seen_urls.add(article['url'])
-            
-            logger.info(f"Collected {len(unique_articles)} unique articles from News API")
-            return unique_articles
+            logger.info(f"Collected {len(news_data)} articles from News API")
             
         except Exception as e:
             logger.error(f"Error collecting from News API: {str(e)}")
-            return []
-    
-    def _search_news_api(self, query: str, from_date: str) -> List[Dict]:
-        """Search News API using query terms"""
-        try:
-            url = 'https://newsapi.org/v2/everything'
-            params = {
-                'q': query,
-                'from': from_date,
-                'language': 'en',
-                'sortBy': 'publishedAt',
-                'pageSize': 100,
-                'apiKey': self.news_api_key
-            }
-            
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            
-            data = response.json()
-            articles = data.get('articles', [])
-            
-            # Filter for health-related articles
-            health_articles = []
-            for article in articles:
-                if self._is_health_related(article):
-                    processed_article = self._process_news_article(article, 'News API')
-                    if processed_article:
-                        health_articles.append(processed_article)
-            
-            return health_articles
-            
-        except Exception as e:
-            logger.error(f"Error searching News API for '{query}': {str(e)}")
-            return []
-    
-    def collect_from_rss(self, days_back: int = 7) -> List[Dict]:
-        """
-        Collect news from RSS feeds
         
-        Args:
-            days_back: Number of days to search back
-            
-        Returns:
-            List of news articles
-        """
+        return news_data
+    
+    def _collect_from_rss_feeds(self, days_back: int) -> List[Dict]:
+        """Collect data from RSS feeds as fallback"""
+        news_data = []
+        
+        # RSS feeds for health news
+        rss_feeds = [
+            'https://www.who.int/rss-feeds/news-english.xml',
+            'https://www.cdc.gov/rss/news.xml',
+            'https://feeds.bbci.co.uk/news/health/rss.xml',
+            'https://rss.cnn.com/rss/edition.rss'
+        ]
+        
         try:
-            all_articles = []
+            import feedparser
             
-            for source_id, source_info in self.news_sources.items():
+            for feed_url in rss_feeds:
                 try:
-                    articles = self._fetch_from_rss(source_info['rss'], source_info['name'])
-                    all_articles.extend(articles)
+                    feed = feedparser.parse(feed_url)
+                    
+                    for entry in feed.entries[:10]:  # Limit entries
+                        if self._is_health_related_rss(entry):
+                            processed_article = self._process_rss_article(entry)
+                            if processed_article:
+                                news_data.append(processed_article)
+                    
+                    time.sleep(1)  # Rate limiting
                     
                 except Exception as e:
-                    logger.warning(f"Error collecting from RSS {source_info['name']}: {str(e)}")
+                    logger.warning(f"Error parsing RSS feed {feed_url}: {str(e)}")
                     continue
             
-            # Filter by date
-            cutoff_date = datetime.now() - timedelta(days=days_back)
-            recent_articles = [
-                article for article in all_articles
-                if article.get('published_at') and article['published_at'] >= cutoff_date
-            ]
+            logger.info(f"Collected {len(news_data)} articles from RSS feeds")
             
-            logger.info(f"Collected {len(recent_articles)} articles from RSS feeds")
-            return recent_articles
-            
+        except ImportError:
+            logger.warning("feedparser not installed. RSS collection skipped.")
         except Exception as e:
             logger.error(f"Error collecting from RSS feeds: {str(e)}")
-            return []
-    
-    def _fetch_from_rss(self, rss_url: str, source_name: str) -> List[Dict]:
-        """Fetch articles from RSS feed"""
-        try:
-            response = requests.get(rss_url, timeout=10)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'xml')
-            items = soup.find_all('item')
-            
-            articles = []
-            for item in items:
-                try:
-                    article = self._parse_rss_item(item, source_name)
-                    if article and self._is_health_related(article):
-                        articles.append(article)
-                except Exception as e:
-                    logger.warning(f"Error parsing RSS item: {str(e)}")
-                    continue
-            
-            return articles
-            
-        except Exception as e:
-            logger.error(f"Error fetching RSS from {rss_url}: {str(e)}")
-            return []
-    
-    def _parse_rss_item(self, item, source_name: str) -> Optional[Dict]:
-        """Parse individual RSS item"""
-        try:
-            title = item.find('title')
-            description = item.find('description')
-            link = item.find('link')
-            pub_date = item.find('pubDate')
-            
-            if not all([title, link]):
-                return None
-            
-            # Parse publication date
-            published_at = None
-            if pub_date:
-                try:
-                    from dateutil import parser
-                    published_at = parser.parse(pub_date.text)
-                except:
-                    published_at = datetime.now()
-            
-            return {
-                'title': title.text.strip() if title else '',
-                'content': description.text.strip() if description else '',
-                'url': link.text.strip() if link else '',
-                'source': source_name,
-                'published_at': published_at or datetime.now()
-            }
-            
-        except Exception as e:
-            logger.warning(f"Error parsing RSS item: {str(e)}")
-            return None
+        
+        return news_data
     
     def _is_health_related(self, article: Dict) -> bool:
         """Check if article is health-related"""
-        text = f"{article.get('title', '')} {article.get('content', '')}".lower()
+        title = article.get('title', '').lower()
+        description = article.get('description', '').lower()
+        content = article.get('content', '').lower()
+        
+        text = f"{title} {description} {content}"
         
         # Check for health keywords
         for keyword in self.health_keywords:
-            if keyword.lower() in text:
+            if keyword in text:
+                return True
+        
+        # Check for Kenya-specific terms
+        for term in self.kenya_health_terms:
+            if term in text:
                 return True
         
         return False
     
-    def _process_news_article(self, article: Dict, source: str) -> Optional[Dict]:
-        """Process news article and extract relevant information"""
+    def _is_health_related_rss(self, entry) -> bool:
+        """Check if RSS entry is health-related"""
+        title = getattr(entry, 'title', '').lower()
+        summary = getattr(entry, 'summary', '').lower()
+        
+        text = f"{title} {summary}"
+        
+        for keyword in self.health_keywords:
+            if keyword in text:
+                return True
+        
+        return False
+    
+    def _process_news_article(self, article: Dict) -> Optional[Dict]:
+        """Process news article for database storage"""
         try:
-            # Parse publication date
-            published_at = None
-            if article.get('publishedAt'):
-                try:
-                    from dateutil import parser
-                    published_at = parser.parse(article['publishedAt'])
-                except:
-                    published_at = datetime.now()
+            title = article.get('title', '')
+            description = article.get('description', '')
+            url = article.get('url', '')
+            published_at = article.get('publishedAt', '')
+            source = article.get('source', {}).get('name', 'Unknown')
             
-            # Extract county information
-            county = self._extract_county(article.get('title', '') + ' ' + article.get('content', ''))
+            # Parse published date
+            try:
+                if published_at:
+                    published_date = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                else:
+                    published_date = datetime.now()
+            except:
+                published_date = datetime.now()
             
-            # Extract keywords
-            keywords = self._extract_keywords(article.get('title', '') + ' ' + article.get('content', ''))
+            # Extract disease type
+            disease_type = self._extract_disease_type(title + ' ' + description)
+            
+            # Extract outbreak status
+            outbreak_status = self._extract_outbreak_status(title + ' ' + description)
+            
+            # Extract affected counties
+            affected_counties = self._extract_counties(title + ' ' + description)
             
             return {
-                'title': article.get('title', ''),
-                'content': article.get('content', ''),
-                'url': article.get('url', ''),
+                'title': title,
+                'content': description,
+                'url': url,
                 'source': source,
-                'published_at': published_at or datetime.now(),
-                'county': county,
-                'keywords': keywords
+                'published_at': published_date,
+                'county': self._extract_primary_county(title + ' ' + description),
+                'sentiment_score': 0.0,  # Default neutral sentiment
+                'sentiment_label': 'neutral',
+                'keywords': self._extract_keywords(title + ' ' + description),
+                'health_relevance_score': self._calculate_relevance_score(title + ' ' + description)
             }
             
         except Exception as e:
-            logger.warning(f"Error processing article: {str(e)}")
+            logger.warning(f"Error processing news article: {str(e)}")
             return None
     
-    def _extract_county(self, text: str) -> Optional[str]:
-        """Extract Kenyan county from text"""
+    def _process_rss_article(self, entry) -> Optional[Dict]:
+        """Process RSS article for database storage"""
+        try:
+            title = getattr(entry, 'title', '')
+            summary = getattr(entry, 'summary', '')
+            link = getattr(entry, 'link', '')
+            published = getattr(entry, 'published', '')
+            
+            # Parse published date
+            try:
+                if published:
+                    published_date = datetime.strptime(published, '%a, %d %b %Y %H:%M:%S %Z')
+                else:
+                    published_date = datetime.now()
+            except:
+                published_date = datetime.now()
+            
+            # Extract disease type
+            disease_type = self._extract_disease_type(title + ' ' + summary)
+            
+            # Extract outbreak status
+            outbreak_status = self._extract_outbreak_status(title + ' ' + summary)
+            
+            # Extract affected counties
+            affected_counties = self._extract_counties(title + ' ' + summary)
+            
+            return {
+                'title': title,
+                'content': summary,
+                'url': link,
+                'source': 'RSS Feed',
+                'published_at': published_date,
+                'county': self._extract_primary_county(title + ' ' + summary),
+                'sentiment_score': 0.0,
+                'sentiment_label': 'neutral',
+                'keywords': self._extract_keywords(title + ' ' + summary),
+                'health_relevance_score': self._calculate_relevance_score(title + ' ' + summary)
+            }
+            
+        except Exception as e:
+            logger.warning(f"Error processing RSS article: {str(e)}")
+            return None
+    
+    def _extract_disease_type(self, text: str) -> Optional[str]:
+        """Extract disease type from text"""
         text_lower = text.lower()
         
-        for county in self.kenyan_counties:
-            if county.lower() in text_lower:
-                return county
+        disease_mapping = {
+            'malaria': ['malaria', 'mosquito', 'plasmodium'],
+            'tuberculosis': ['tuberculosis', 'tb', 'tuberculous'],
+            'hiv': ['hiv', 'aids', 'human immunodeficiency'],
+            'cholera': ['cholera', 'vibrio'],
+            'influenza': ['influenza', 'flu', 'h1n1', 'h3n2'],
+            'covid': ['covid', 'coronavirus', 'sars-cov-2'],
+            'dengue': ['dengue', 'dengue fever'],
+            'measles': ['measles', 'rubeola'],
+            'yellow fever': ['yellow fever', 'yellowfever']
+        }
+        
+        for disease, keywords in disease_mapping.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    return disease
         
         return None
+    
+    def _extract_outbreak_status(self, text: str) -> str:
+        """Extract outbreak status from text"""
+        text_lower = text.lower()
+        
+        if any(word in text_lower for word in ['outbreak', 'epidemic', 'confirmed cases', 'spreading']):
+            return 'confirmed'
+        elif any(word in text_lower for word in ['suspected', 'investigating', 'monitoring', 'alert']):
+            return 'suspected'
+        else:
+            return 'none'
+    
+    def _extract_counties(self, text: str) -> List[str]:
+        """Extract affected counties from text"""
+        text_lower = text.lower()
+        
+        kenyan_counties = [
+            'nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret', 'thika', 'malindi',
+            'kitale', 'garissa', 'kakamega', 'meru', 'nyeri', 'machakos', 'kisii',
+            'kericho', 'bungoma', 'busia', 'vihiga', 'siaya', 'homa bay', 'migori',
+            'nyamira', 'trans nzoia', 'uasin gishu', 'elgeyo marakwet', 'nandi',
+            'baringo', 'laikipia', 'narok', 'kajiado', 'bomet', 'west pokot',
+            'samburu', 'turkana', 'wajir', 'mandera', 'marsabit', 'isiolo',
+            'tharaka nithi', 'embu', 'kitui', 'makueni', 'taita taveta', 'kwale',
+            'kilifi', 'tana river', 'lamu'
+        ]
+        
+        affected_counties = []
+        for county in kenyan_counties:
+            if county in text_lower:
+                affected_counties.append(county.title())
+        
+        return affected_counties if affected_counties else ['Kenya']
+    
+    def _calculate_relevance_score(self, text: str) -> float:
+        """Calculate relevance score for the article"""
+        text_lower = text.lower()
+        score = 0.0
+        
+        # Base score for health keywords
+        for keyword in self.health_keywords:
+            if keyword in text_lower:
+                score += 0.1
+        
+        # Bonus for Kenya-specific terms
+        for term in self.kenya_health_terms:
+            if term in text_lower:
+                score += 0.2
+        
+        # Bonus for outbreak-related terms
+        outbreak_terms = ['outbreak', 'epidemic', 'confirmed', 'cases', 'deaths']
+        for term in outbreak_terms:
+            if term in text_lower:
+                score += 0.1
+        
+        return min(score, 1.0)  # Cap at 1.0
+    
+    def _extract_primary_county(self, text: str) -> Optional[str]:
+        """Extract the primary county mentioned in text"""
+        counties = self._extract_counties(text)
+        return counties[0] if counties else None
     
     def _extract_keywords(self, text: str) -> List[str]:
         """Extract health-related keywords from text"""
@@ -321,97 +398,50 @@ class NewsCollector:
         found_keywords = []
         
         for keyword in self.health_keywords:
-            if keyword.lower() in text_lower:
+            if keyword in text_lower:
                 found_keywords.append(keyword)
         
         return found_keywords
     
-    def save_news_to_db(self, articles: List[Dict]) -> int:
-        """
-        Save news articles to database
-        
-        Args:
-            articles: List of processed news articles
-            
-        Returns:
-            Number of articles saved
-        """
+    def _save_news_data(self, news_data: List[Dict]) -> int:
+        """Save news data to database"""
         saved_count = 0
         
         try:
-            for article in articles:
-                # Check if article already exists
-                existing_article = NewsData.query.filter_by(url=article['url']).first()
-                
-                if not existing_article:
-                    # Create new NewsData record
+            for article in news_data:
+                try:
+                    # Check if article already exists
+                    existing = NewsData.query.filter_by(url=article['url']).first()
+                    if existing:
+                        continue
+                    
+                    # Create new record
                     news_record = NewsData(
                         title=article['title'],
                         content=article['content'],
-                        source=article['source'],
                         url=article['url'],
+                        source=article['source'],
                         published_at=article['published_at'],
-                        county=article.get('county'),
-                        keywords=article.get('keywords', [])
+                        county=article['county'],
+                        sentiment_score=article['sentiment_score'],
+                        sentiment_label=article['sentiment_label'],
+                        keywords=article['keywords'],
+                        health_relevance_score=article['health_relevance_score']
                     )
                     
                     db.session.add(news_record)
                     saved_count += 1
+                    
+                except Exception as e:
+                    logger.warning(f"Error saving news article: {str(e)}")
+                    continue
             
             db.session.commit()
-            logger.info(f"Saved {saved_count} new news articles to database")
+            logger.info(f"Successfully saved {saved_count} news articles")
             
         except Exception as e:
-            logger.error(f"Error saving news articles to database: {str(e)}")
+            logger.error(f"Error saving news data to database: {str(e)}")
             db.session.rollback()
+            saved_count = 0
         
         return saved_count
-    
-    def collect_and_save(self, days_back: int = 7) -> Dict:
-        """
-        Main method to collect and save news articles
-        
-        Args:
-            days_back: Number of days to search back
-            
-        Returns:
-            Dictionary with collection statistics
-        """
-        logger.info("Starting news data collection...")
-        
-        # Collect from News API
-        api_articles = self.collect_from_news_api(days_back)
-        
-        # Collect from RSS feeds
-        rss_articles = self.collect_from_rss(days_back)
-        
-        # Combine all articles
-        all_articles = api_articles + rss_articles
-        
-        # Remove duplicates based on URL
-        unique_articles = []
-        seen_urls = set()
-        for article in all_articles:
-            if article['url'] not in seen_urls:
-                unique_articles.append(article)
-                seen_urls.add(article['url'])
-        
-        # Save to database
-        saved_count = self.save_news_to_db(unique_articles)
-        
-        return {
-            'collected_api': len(api_articles),
-            'collected_rss': len(rss_articles),
-            'total_collected': len(all_articles),
-            'unique_collected': len(unique_articles),
-            'saved': saved_count,
-            'duplicates': len(unique_articles) - saved_count,
-            'collection_date': datetime.utcnow().isoformat()
-        }
-
-if __name__ == "__main__":
-    # Test the collector
-    collector = NewsCollector()
-    results = collector.collect_and_save(days_back=7)
-    print(f"Collection results: {results}")
-

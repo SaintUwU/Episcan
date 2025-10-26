@@ -8,8 +8,8 @@ from datetime import datetime
 from app import create_app, db
 from data_collection.twitter_collector import TwitterCollector
 from data_collection.google_trends import GoogleTrendsCollector
-from data_collection.news_collector import NewsCollector
 from data_collection.who_data import WHODataCollector
+from data_collection.who_gho_collector import WHOGHOCollector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +24,8 @@ class DataCollectionScheduler:
         self.collectors = {
             'twitter': TwitterCollector(),
             'google_trends': GoogleTrendsCollector(),
-            'news': NewsCollector(),
-            'who': WHODataCollector()
+            'who': WHODataCollector(),
+            'who_gho': WHOGHOCollector()
         }
     
     def collect_twitter_data(self):
@@ -48,16 +48,6 @@ class DataCollectionScheduler:
         except Exception as e:
             logger.error(f"Google Trends collection failed: {str(e)}")
     
-    def collect_news_data(self):
-        """Collect news data"""
-        try:
-            logger.info("Starting scheduled news data collection...")
-            with self.app.app_context():
-                results = self.collectors['news'].collect_and_save(days_back=1)
-                logger.info(f"News collection completed: {results}")
-        except Exception as e:
-            logger.error(f"News collection failed: {str(e)}")
-    
     def collect_who_data(self):
         """Collect WHO data"""
         try:
@@ -68,6 +58,16 @@ class DataCollectionScheduler:
         except Exception as e:
             logger.error(f"WHO collection failed: {str(e)}")
     
+    def collect_who_gho_data(self):
+        """Collect WHO GHO data"""
+        try:
+            logger.info("Starting scheduled WHO GHO data collection...")
+            with self.app.app_context():
+                results = self.collectors['who_gho'].collect_and_save(years_back=1)
+                logger.info(f"WHO GHO collection completed: {results}")
+        except Exception as e:
+            logger.error(f"WHO GHO collection failed: {str(e)}")
+    
     def collect_all_data(self):
         """Collect data from all sources"""
         logger.info("Starting scheduled data collection from all sources...")
@@ -75,8 +75,8 @@ class DataCollectionScheduler:
         # Collect from all sources
         self.collect_twitter_data()
         self.collect_google_trends_data()
-        self.collect_news_data()
         self.collect_who_data()
+        self.collect_who_gho_data()
         
         logger.info("Scheduled data collection completed")
     
@@ -88,11 +88,11 @@ class DataCollectionScheduler:
         # Google Trends data collection daily at 6 AM
         schedule.every().day.at("06:00").do(self.collect_google_trends_data)
         
-        # News data collection every 4 hours
-        schedule.every(4).hours.do(self.collect_news_data)
-        
         # WHO data collection daily at 8 AM
         schedule.every().day.at("08:00").do(self.collect_who_data)
+        
+        # WHO GHO data collection weekly on Sundays at 10 AM
+        schedule.every().sunday.at("10:00").do(self.collect_who_gho_data)
         
         # Full data collection daily at midnight
         schedule.every().day.at("00:00").do(self.collect_all_data)

@@ -75,6 +75,9 @@
                             <small class="opacity-75">{{ current_user.role }}</small>
                         </div>
                         <div class="btn-group">
+                            <button class="btn btn-light me-2" data-bs-toggle="modal" data-bs-target="#explanationsModal">
+                                <i class="fas fa-question-circle"></i> Help
+                            </button>
                             <button class="btn btn-light me-2" onclick="refreshData()">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
@@ -530,6 +533,9 @@
             setInterval(loadDashboardData, 300000);
         });
     </script>
+    
+    <!-- Include explanations modal -->
+    {% include 'dashboard_explanations.html' %}
 </body>
 </html>
 

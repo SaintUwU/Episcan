@@ -110,8 +110,8 @@ def collect_data():
     """Collect data from all sources"""
     from data_collection.twitter_collector import TwitterCollector
     from data_collection.google_trends import GoogleTrendsCollector
-    from data_collection.news_collector import NewsCollector
     from data_collection.who_data import WHODataCollector
+    from data_collection.who_gho_collector import WHOGHOCollector
     
     print("Starting data collection...")
     
@@ -131,13 +131,13 @@ def collect_data():
     except Exception as e:
         print(f"Google Trends collection failed: {str(e)}")
     
-    # Collect News data
+    # Collect WHO GHO data
     try:
-        news_collector = NewsCollector()
-        news_results = news_collector.collect_and_save(days_back=7)
-        print(f"News collection: {news_results}")
+        who_gho_collector = WHOGHOCollector()
+        who_gho_results = who_gho_collector.collect_and_save(years_back=1)
+        print(f"WHO GHO collection: {who_gho_results}")
     except Exception as e:
-        print(f"News collection failed: {str(e)}")
+        print(f"WHO GHO collection failed: {str(e)}")
     
     # Collect WHO data
     try:

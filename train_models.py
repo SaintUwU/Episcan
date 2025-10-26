@@ -31,18 +31,18 @@ def retrain_models_with_expanded_data():
         
         print("Step 1: Preparing expanded training dataset...")
         
-        # Collect data from extended period (6 months)
-        df, feature_columns = data_processor.prepare_ml_dataset(days_back=180)
+        # Collect data from existing training data or extended period
+        df, feature_columns = data_processor.prepare_ml_dataset_with_existing(use_existing=True, days_back=180)
         
         if df.empty:
-            print("❌ No data available for training. Please run data collection first.")
+            print("[ERROR] No data available for training. Please run data collection first.")
             return False
         
-        print(f"✅ Dataset prepared: {len(df)} records, {len(feature_columns)} features")
+        print(f"[SUCCESS] Dataset prepared: {len(df)} records, {len(feature_columns)} features")
         
         # Save the expanded training data
         training_file = data_processor.save_training_data(df)
-        print(f"✅ Training data saved to: {training_file}")
+        print(f"[SUCCESS] Training data saved to: {training_file}")
         
         print("\nStep 2: Training models with expanded data...")
         
@@ -62,8 +62,25 @@ def retrain_models_with_expanded_data():
         for model_name, results in training_results.items():
             if 'error' in results:
                 print(f"  ❌ {model_name}: {results['error']}")
+            elif model_name == 'test_evaluation':
+                # Handle test evaluation results
+                if isinstance(results, dict):
+                    avg_accuracy = 0
+                    count = 0
+                    for sub_model, sub_results in results.items():
+                        if isinstance(sub_results, dict) and 'accuracy' in sub_results:
+                            avg_accuracy += sub_results['accuracy']
+                            count += 1
+                    if count > 0:
+                        avg_accuracy /= count
+                        print(f"  ✅ {model_name}: {avg_accuracy:.3f} accuracy")
+                    else:
+                        print(f"  ✅ {model_name}: Test evaluation completed")
+                else:
+                    print(f"  ✅ {model_name}: Test evaluation completed")
             else:
-                accuracy = results.get('accuracy', 0)
+                # Get validation accuracy (primary metric)
+                accuracy = results.get('val_accuracy', results.get('train_accuracy', 0))
                 print(f"  ✅ {model_name}: {accuracy:.3f} accuracy")
         
         print("\nStep 4: Testing model performance...")
@@ -75,9 +92,9 @@ def retrain_models_with_expanded_data():
         test_results = {}
         for model_name in ['random_forest', 'neural_network']:
             try:
-                # Load the model
-                model = predictor.load_model(model_name)
-                if model:
+                # Load the models
+                predictor.load_models()
+                if predictor.models.get(model_name):
                     print(f"  ✅ {model_name} model loaded successfully")
                     test_results[model_name] = "Loaded successfully"
                 else:
@@ -99,16 +116,16 @@ def retrain_models_with_expanded_data():
         
         # Check if we have enough data now
         if len(df) > 10000:
-            print("✅ Excellent! You now have sufficient data for robust ML training.")
+            print("[SUCCESS] Excellent! You now have sufficient data for robust ML training.")
         elif len(df) > 5000:
-            print("✅ Good! You have a decent amount of data for training.")
+            print("[SUCCESS] Good! You have a decent amount of data for training.")
         else:
-            print("⚠️  You may still need more data for optimal training.")
+            print("[WARNING] You may still need more data for optimal training.")
         
         return True
         
     except Exception as e:
-        print(f"\n❌ Error during retraining: {str(e)}")
+        print(f"\n[ERROR] Error during retraining: {str(e)}")
         logger.error(f"Retraining error: {str(e)}")
         return False
 
@@ -117,10 +134,10 @@ def main():
     success = retrain_models_with_expanded_data()
     
     if success:
-        print("\n🎉 Model retraining completed successfully!")
+        print("\n[SUCCESS] Model retraining completed successfully!")
         print("Your models are now trained with expanded data and should perform better.")
     else:
-        print("\n❌ Model retraining failed. Please check the errors above.")
+        print("\n[ERROR] Model retraining failed. Please check the errors above.")
     
     return 0 if success else 1
 

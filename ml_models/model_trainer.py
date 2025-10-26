@@ -179,7 +179,7 @@ class ModelTrainer:
             'val_accuracy': val_score,
             'val_auc': val_auc,
             'n_iterations': nn_model.n_iter_,
-            'loss_curve': nn_model.loss_curve_.tolist() if hasattr(nn_model, 'loss_curve_') else []
+            'loss_curve': nn_model.loss_curve_.tolist() if hasattr(nn_model, 'loss_curve_') and hasattr(nn_model.loss_curve_, 'tolist') else []
         }
         
         self.models['neural_network'] = nn_model
@@ -385,12 +385,17 @@ class ModelTrainer:
                 # Classification report
                 report = classification_report(y_test, y_pred, output_dict=True)
                 
+                # Confusion matrix
+                cm = confusion_matrix(y_test, y_pred)
+                
                 test_results[model_name] = {
                     'accuracy': accuracy,
                     'auc': auc,
                     'precision': report['weighted avg']['precision'],
                     'recall': report['weighted avg']['recall'],
-                    'f1_score': report['weighted avg']['f1-score']
+                    'f1_score': report['weighted avg']['f1-score'],
+                    'confusion_matrix': cm.tolist(),
+                    'classification_report': report
                 }
                 
                 logger.info(f"{model_name} - Test Accuracy: {accuracy:.4f}, AUC: {auc:.4f}")
@@ -400,6 +405,29 @@ class ModelTrainer:
                 test_results[model_name] = {'error': str(e)}
         
         return test_results
+    
+    def print_confusion_matrix(self, cm: np.ndarray, model_name: str):
+        """Print confusion matrix in a readable format"""
+        print(f"\n{model_name} Confusion Matrix:")
+        print("=" * 40)
+        print(f"{'':>10} {'Predicted':>20}")
+        print(f"{'':>10} {'No Outbreak':>12} {'Outbreak':>8}")
+        print(f"{'Actual':>10} {'No Outbreak':>12} {cm[0,0]:>8} {cm[0,1]:>8}")
+        print(f"{'':>10} {'Outbreak':>12} {cm[1,0]:>8} {cm[1,1]:>8}")
+        print("=" * 40)
+        
+        # Calculate additional metrics
+        tn, fp, fn, tp = cm.ravel()
+        sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+        specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+        
+        print(f"True Negatives (TN):  {tn:>8} - Correctly predicted no outbreak")
+        print(f"False Positives (FP): {fp:>8} - Incorrectly predicted outbreak")
+        print(f"False Negatives (FN): {fn:>8} - Missed actual outbreak")
+        print(f"True Positives (TP):  {tp:>8} - Correctly predicted outbreak")
+        print(f"Sensitivity (Recall): {sensitivity:.3f} - How well we catch outbreaks")
+        print(f"Specificity:         {specificity:.3f} - How well we avoid false alarms")
+        print()
     
     def save_models(self):
         """Save trained models and scalers"""

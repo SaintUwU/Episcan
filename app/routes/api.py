@@ -431,8 +431,8 @@ def collect_data():
     try:
         from data_collection.twitter_collector import TwitterCollector
         from data_collection.google_trends import GoogleTrendsCollector
-        from data_collection.news_collector import NewsCollector
         from data_collection.who_data import WHODataCollector
+        from data_collection.who_gho_collector import WHOGHOCollector
         import threading
         import time
         
@@ -449,15 +449,15 @@ def collect_data():
             errors.append(error_msg)
             results['google_trends'] = {'error': error_msg}
         
-        # Collect News data (with simplified approach)
+        # Collect WHO GHO data
         try:
-            news_collector = NewsCollector()
-            news_results = news_collector.collect_and_save(days_back=1)
-            results['news'] = news_results
+            who_gho_collector = WHOGHOCollector()
+            who_gho_results = who_gho_collector.collect_and_save(years_back=1)
+            results['who_gho'] = who_gho_results
         except Exception as e:
-            error_msg = f"News API: {str(e)}"
+            error_msg = f"WHO GHO: {str(e)}"
             errors.append(error_msg)
-            results['news'] = {'error': error_msg}
+            results['who_gho'] = {'error': error_msg}
         
         # Collect WHO data (with simplified approach)
         try:
